@@ -15,7 +15,19 @@ const JOBS_DIR = path.join(os.tmpdir(), 'paperworks-jobs');
 fs.mkdirSync(JOBS_DIR, { recursive: true });
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      // Buat folder job di sini, sebelum file ditulis, supaya file langsung
+      // ditulis ke disk (bukan ditampung penuh di RAM seperti memoryStorage).
+      const jobId = crypto.randomUUID();
+      const jobDir = path.join(JOBS_DIR, jobId);
+      fs.mkdirSync(jobDir, { recursive: true });
+      req.jobId = jobId;
+      req.jobDir = jobDir;
+      cb(null, jobDir);
+    },
+    filename: (req, file, cb) => cb(null, 'input.pdf')
+  }),
   limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype !== 'application/pdf') {
@@ -40,46 +52,52 @@ app.post('/api/convert', upload.single('pdf'), async (req, res) => {
       return res.status(400).json({ error: 'Tidak ada file PDF yang diupload.' });
     }
 
-    const jobId = crypto.randomUUID();
-    const jobDir = path.join(JOBS_DIR, jobId);
-    fs.mkdirSync(jobDir, { recursive: true });
-
-    const inputPath = path.join(jobDir, 'input.pdf');
-    fs.writeFileSync(inputPath, req.file.buffer);
+    const jobId = req.jobId;
+    const jobDir = req.jobDir;
+    const inputPath = req.file.path; // sudah ditulis langsung ke disk oleh multer
 
     const outputPrefix = path.join(jobDir, 'page');
 
-    // pdftoppm dari poppler-utils: render tiap halaman PDF jadi JPG
-    execFile('pdftoppm', ['-jpeg', '-r', '150', inputPath, outputPrefix], (err) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({
-          error: 'Gagal mengonversi PDF. Pastikan file tidak rusak atau terkunci password.'
+    // Batasi waktu proses supaya tidak menggantung tanpa batas di file besar/rusak
+    const TIMEOUT_MS = 90 * 1000;
+    const child = execFile(
+      'pdftoppm',
+      ['-jpeg', '-r', '150', inputPath, outputPrefix],
+      { timeout: TIMEOUT_MS },
+      (err) => {
+        if (err) {
+          console.error(err);
+          const timedOut = err.killed || err.signal === 'SIGTERM';
+          return res.status(500).json({
+            error: timedOut
+              ? 'Proses konversi memakan waktu terlalu lama dan dihentikan. Coba file yang lebih kecil atau kurangi jumlah halaman.'
+              : 'Gagal mengonversi PDF. Pastikan file tidak rusak atau terkunci password.'
+          });
+        }
+
+        const files = fs.readdirSync(jobDir)
+          .filter(f => f.endsWith('.jpg'))
+          .sort((a, b) => {
+            const na = parseInt(a.match(/-(\d+)\.jpg$/)?.[1] || '0', 10);
+            const nb = parseInt(b.match(/-(\d+)\.jpg$/)?.[1] || '0', 10);
+            return na - nb;
+          });
+
+        if (files.length === 0) {
+          return res.status(500).json({ error: 'Tidak ada halaman yang berhasil dikonversi.' });
+        }
+
+        scheduleCleanup(jobDir);
+
+        res.json({
+          jobId,
+          pages: files.map((f, i) => ({
+            index: i + 1,
+            url: `/api/preview/${jobId}/${f}`
+          }))
         });
       }
-
-      const files = fs.readdirSync(jobDir)
-        .filter(f => f.endsWith('.jpg'))
-        .sort((a, b) => {
-          const na = parseInt(a.match(/-(\d+)\.jpg$/)?.[1] || '0', 10);
-          const nb = parseInt(b.match(/-(\d+)\.jpg$/)?.[1] || '0', 10);
-          return na - nb;
-        });
-
-      if (files.length === 0) {
-        return res.status(500).json({ error: 'Tidak ada halaman yang berhasil dikonversi.' });
-      }
-
-      scheduleCleanup(jobDir);
-
-      res.json({
-        jobId,
-        pages: files.map((f, i) => ({
-          index: i + 1,
-          url: `/api/preview/${jobId}/${f}`
-        }))
-      });
-    });
+    );
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || 'Terjadi kesalahan server.' });

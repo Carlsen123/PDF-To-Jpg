@@ -25,3 +25,9 @@ Buka `http://localhost:3000`.
 - Ubah nama, warna, dan teks di `public/index.html` (variabel warna ada di bagian `:root` pada `<style>`).
 - Batas ukuran file diatur di `server.js` pada baris `limits: { fileSize: 100 * 1024 * 1024 }` (saat ini 100 MB).
 - Kualitas gambar diatur lewat resolusi `-r 150` pada perintah `pdftoppm` di `server.js` — naikkan angka itu untuk gambar lebih tajam (ukuran file juga lebih besar).
+
+## Troubleshooting: error "Unexpected end of JSON input" atau proses macet lama
+Ini biasanya terjadi karena **server kehabisan memori (RAM)** saat memproses file besar, terutama di paket gratis Render (umumnya dibatasi ~512 MB RAM). File PDF ditulis langsung ke disk (bukan ditampung penuh di RAM) untuk mengurangi risiko ini, dan proses konversi otomatis dihentikan setelah 90 detik supaya tidak menggantung selamanya. Kalau masih sering terjadi pada file besar:
+- Cek tab **Logs** di dashboard Render saat error terjadi — pesan seperti `Killed` atau `JavaScript heap out of memory` menandakan kehabisan RAM.
+- Pertimbangkan upgrade paket Render ke instance dengan RAM lebih besar untuk file besar/berhalaman banyak.
+- Turunkan resolusi `-r 150` menjadi misalnya `-r 100` untuk mengurangi pemakaian memori per halaman.
