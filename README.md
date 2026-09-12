@@ -23,5 +23,5 @@ Buka `http://localhost:3000`.
 
 ## Kustomisasi
 - Ubah nama, warna, dan teks di `public/index.html` (variabel warna ada di bagian `:root` pada `<style>`).
-- Batas ukuran file diatur di `server.js` pada baris `limits: { fileSize: 50 * 1024 * 1024 }`.
+- Batas ukuran file diatur di `server.js` pada baris `limits: { fileSize: 200 * 1024 * 1024 }` (saat ini 200 MB).
 - Kualitas gambar diatur lewat resolusi `-r 150` pada perintah `pdftoppm` di `server.js` — naikkan angka itu untuk gambar lebih tajam (ukuran file juga lebih besar).
