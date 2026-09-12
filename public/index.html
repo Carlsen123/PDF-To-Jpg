@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Paperworks — Ubah PDF jadi JPG</title>
+<meta name="description" content="Ubah setiap halaman PDF menjadi gambar JPG langsung dari browser." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F3EC;
+    --surface:#FFFFFF;
+    --ink:#1F2A44;
+    --ink-soft:#4A5578;
+    --rust:#D4652C;
+    --rust-dim:#B5511F;
+    --line:#E4DFD2;
+    --muted:#8A8574;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--paper);color:var(--ink);
+    font-family:'Inter',sans-serif;min-height:100vh;
+  }
+  h1,h2,.display{font-family:'Space Grotesk',sans-serif}
+  button{font:inherit;cursor:pointer;border:none;background:none}
+
+  .nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:22px 6%;border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;font-family:'Space Grotesk',sans-serif}
+  .brand-mark{
+    width:30px;height:34px;background:var(--ink);position:relative;border-radius:2px;
+  }
+  .brand-mark::after{
+    content:'';position:absolute;top:0;right:0;width:0;height:0;
+    border-style:solid;border-width:0 10px 10px 0;border-color:transparent var(--paper) transparent transparent;
+  }
+  .nav-sub{font-size:13px;color:var(--muted)}
+
+  main{max-width:760px;margin:0 auto;padding:60px 20px 100px}
+  .hero{text-align:center;margin-bottom:36px}
+  .eyebrow{font-size:13px;color:var(--rust);font-weight:600;margin-bottom:12px}
+  h1{font-size:clamp(30px,4.5vw,46px);line-height:1.15;margin-bottom:14px}
+  .hero p{color:var(--ink-soft);font-size:16px;max-width:480px;margin:0 auto}
+
+  .dropzone{
+    background:var(--surface);border:2px dashed var(--line);border-radius:18px;
+    min-height:280px;display:flex;align-items:center;justify-content:center;
+    transition:.15s;
+  }
+  .dropzone.drag{border-color:var(--rust);background:#FFF8F3}
+  .dz-inner{text-align:center;padding:40px}
+  .dz-icon{
+    width:70px;height:80px;margin:0 auto 20px;position:relative;
+    background:var(--paper);border:1.5px solid var(--line);border-radius:4px;
+  }
+  .dz-icon::after{
+    content:'';position:absolute;top:0;right:0;width:0;height:0;
+    border-style:solid;border-width:0 16px 16px 0;border-color:transparent var(--paper) transparent transparent;
+    filter:drop-shadow(-1px 1px 0 var(--line));
+  }
+  .dz-icon .tag{
+    position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+    background:var(--rust);color:#fff;font-size:10px;font-weight:700;
+    padding:2px 6px;border-radius:3px;letter-spacing:.3px;
+  }
+  .dz-inner h2{font-size:20px;margin-bottom:8px}
+  .dz-inner p{color:var(--muted);font-size:14px;margin-bottom:22px}
+  .pick-btn{
+    background:var(--ink);color:#fff;padding:14px 28px;border-radius:10px;
+    font-weight:600;font-size:15px;
+  }
+  .pick-btn:hover{background:#141b30}
+  .small{font-size:12px;color:var(--muted);margin-top:14px!important}
+  #fileInput{display:none}
+
+  .loading{display:none;text-align:center;padding:50px 20px}
+  .loading.show{display:block}
+  .bar{
+    width:220px;height:6px;background:var(--line);border-radius:6px;margin:20px auto 0;overflow:hidden;
+  }
+  .bar-fill{width:40%;height:100%;background:var(--rust);border-radius:6px;animation:slide 1.1s ease-in-out infinite}
+  @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(340%)}}
+
+  .results{display:none;margin-top:34px}
+  .results.show{display:block}
+  .results-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+  .results-head h3{font-size:18px}
+  .download-all{
+    background:var(--rust);color:#fff;padding:12px 20px;border-radius:10px;font-weight:600;font-size:14px;
+  }
+  .download-all:hover{background:var(--rust-dim)}
+  .page-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px}
+  .page-item{
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  }
+  .page-item img{width:100%;display:block;aspect-ratio:3/4;object-fit:cover;background:var(--paper)}
+  .page-item .pi-foot{
+    display:flex;justify-content:space-between;align-items:center;padding:8px 10px;font-size:12px;color:var(--muted)
+  }
+  .page-item .pi-foot a{color:var(--rust);font-weight:600}
+
+  .error-box{
+    display:none;background:#FDEDE8;border:1px solid #F0C4B3;color:#9A3E1D;
+    padding:16px 18px;border-radius:10px;margin-top:20px;font-size:14px;
+  }
+  .error-box.show{display:block}
+
+  .reset-link{display:inline-block;margin-top:26px;font-size:13px;color:var(--muted)}
+  .reset-link:hover{color:var(--ink)}
+
+  footer{text-align:center;padding:30px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="brand"><div class="brand-mark"></div>Paperworks</div>
+  <div class="nav-sub">PDF → JPG, langsung dari browser</div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="eyebrow">Alat konversi gambar</div>
+    <h1>Ubah tiap halaman PDF menjadi gambar JPG</h1>
+    <p>Upload dokumen, setiap halamannya otomatis dijadikan gambar terpisah yang siap diunduh.</p>
+  </section>
+
+  <div id="dropzone" class="dropzone">
+    <div id="dzInner" class="dz-inner">
+      <div class="dz-icon"><span class="tag">PDF</span></div>
+      <h2>Letakkan file PDF di sini</h2>
+      <p>atau pilih file dari perangkat kamu</p>
+      <button class="pick-btn" onclick="document.getElementById('fileInput').click()">Pilih File PDF</button>
+      <p class="small">Maks. 50 MB per file</p>
+    </div>
+    <div id="loading" class="loading">
+      <strong>Sedang memproses halaman...</strong>
+      <div class="bar"><div class="bar-fill"></div></div>
+    </div>
+  </div>
+  <input id="fileInput" type="file" accept="application/pdf">
+
+  <div id="errorBox" class="error-box"></div>
+
+  <div id="results" class="results">
+    <div class="results-head">
+      <h3 id="resultsTitle">Hasil konversi</h3>
+      <a id="downloadAll" class="download-all" href="#">Unduh semua (.zip)</a>
+    </div>
+    <div id="pageGrid" class="page-grid"></div>
+    <a href="#" class="reset-link" onclick="resetApp();return false;">↩ Konversi file lain</a>
+  </div>
+</main>
+
+<footer>Paperworks — alat bantu konversi dokumen sederhana.</footer>
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const dzInner = document.getElementById('dzInner');
+const loading = document.getElementById('loading');
+const results = document.getElementById('results');
+const pageGrid = document.getElementById('pageGrid');
+const errorBox = document.getElementById('errorBox');
+const fileInput = document.getElementById('fileInput');
+const downloadAll = document.getElementById('downloadAll');
+const resultsTitle = document.getElementById('resultsTitle');
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files?.[0]) handleFile(e.target.files[0]);
+});
+
+['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, e => {
+  e.preventDefault(); dropzone.classList.add('drag');
+}));
+['dragleave','drop'].forEach(ev => dropzone.addEventListener(ev, e => {
+  e.preventDefault(); dropzone.classList.remove('drag');
+}));
+dropzone.addEventListener('drop', e => {
+  const file = e.dataTransfer.files?.[0];
+  if (file) handleFile(file);
+});
+
+async function handleFile(file){
+  errorBox.classList.remove('show');
+  if(file.type !== 'application/pdf'){
+    showError('File harus berformat PDF.');
+    return;
+  }
+  dzInner.style.display = 'none';
+  loading.classList.add('show');
+  results.classList.remove('show');
+
+  const form = new FormData();
+  form.append('pdf', file);
+
+  try{
+    const res = await fetch('/api/convert', { method: 'POST', body: form });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Gagal mengonversi file.');
+
+    resultsTitle.textContent = `Hasil konversi — ${data.pages.length} halaman`;
+    downloadAll.href = `/api/download/${data.jobId}`;
+    pageGrid.innerHTML = data.pages.map(p => `
+      <div class="page-item">
+        <img src="${p.url}" alt="Halaman ${p.index}">
+        <div class="pi-foot">
+          <span>Hal. ${p.index}</span>
+          <a href="${p.url}" download="halaman-${p.index}.jpg">Unduh</a>
+        </div>
+      </div>`).join('');
+    results.classList.add('show');
+  }catch(err){
+    showError(err.message || 'Terjadi kesalahan saat memproses file.');
+    dzInner.style.display = 'block';
+  }finally{
+    loading.classList.remove('show');
+  }
+}
+
+function showError(msg){
+  errorBox.textContent = msg;
+  errorBox.classList.add('show');
+}
+
+function resetApp(){
+  fileInput.value = '';
+  results.classList.remove('show');
+  dzInner.style.display = 'block';
+}
+</script>
+</body>
+</html>
