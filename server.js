@@ -16,7 +16,7 @@ fs.mkdirSync(JOBS_DIR, { recursive: true });
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype !== 'application/pdf') {
       return cb(new Error('File harus berformat PDF.'));
@@ -113,7 +113,7 @@ app.get('/api/download/:jobId', (req, res) => {
 
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: 'Ukuran file maksimal 200 MB.' });
+    return res.status(413).json({ error: 'Ukuran file maksimal 100 MB.' });
   }
   res.status(400).json({ error: err.message || 'Upload gagal.' });
 });
